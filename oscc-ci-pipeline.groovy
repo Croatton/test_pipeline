@@ -24,12 +24,7 @@ node('python'){
     def components = COMPONENTS
     def prefixes = ['oscc-dev']
     def tmp_repo_node_name = TMP_REPO_NODE_NAME
-//    def tmp_repo_node_name = 'apt.mcp.mirantis.net:8085'
-//    def STACK_RECLASS_ADDRESS = 'https://gerrit.mcp.mirantis.net/salt-models/mcp-virtual-aio'
-//    def OPENSTACK_RELEASES = 'ocata,pike'
-//    def OPENSTACK_COMPONENTS_LIST = 'nova,cinder,glance,keystone,horizon,neutron,designate,heat,ironic,barbican'
     def notToPromote
-//    def DEPLOY_JOB_NAME = 'oscore-MCP1.1-test-release-nightly'
     def testBuilds = [:]
     def deploy_release = [:]
     def distribution

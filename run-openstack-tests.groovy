@@ -203,7 +203,7 @@ node(slave_node) {
                     test_pattern)
 
                 def tempest_stdout
-                tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${test_set}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
+                tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${date}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
                 common.infoMsg('Short test report:')
                 common.infoMsg(tempest_stdout)
             }

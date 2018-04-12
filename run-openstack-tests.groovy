@@ -63,7 +63,7 @@ def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='
 
     def artifacts_dir = '_artifacts/'
 
-    salt.cmdRun(master, target, "tar -cf /root/${output_file} -C ${reports_dir} .")
+    salt.cmdRun(master, target, "tar --exclude='env' -cf /root/${output_file} -C ${reports_dir} .")
     sh "mkdir -p ${artifacts_dir}"
 
     encoded = salt.cmdRun(master, target, "cat /root/${output_file}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success','')

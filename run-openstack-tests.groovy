@@ -198,7 +198,7 @@ node(slave_node) {
 //                    test_concurrency,
 //                    TEST_CONF)
 
-                runNewTempestTests(saltMaster, TEST_IMAGE,
+                runTempestTestsNew(saltMaster, TEST_IMAGE,
                     TEST_TARGET,
                     test_pattern)
 

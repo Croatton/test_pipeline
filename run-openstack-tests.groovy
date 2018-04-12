@@ -44,14 +44,14 @@ salt = new com.mirantis.mk.Salt()
 test = new com.mirantis.mk.Test()
 python = new com.mirantis.mk.Python()
 
-def runTempestTestsNew(master, dockerImageLink, target, pattern = '', localLogDir='/root/test/',logDir='/root/test/') {
+def runTempestTestsNew(master, dockerImageLink, target, pattern = '', localLogDir='/root/test/',logDir='/root/tempest/',
+                       tempestConfLocalPath='/root/test/tempest_generated.conf') {
     def salt = new com.mirantis.mk.Salt()
     salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
     salt.cmdRun(master, "${target}", "docker run " +
                                     "-e PATTERN=${pattern} " +
-                                    "-e LOG_DIR=${logDir} " +
-                                    "-v ${localLogDir}/tempest_generated.conf:/etc/tempest/tempest.conf " +
-                                    "-v ${logDir}:${logDir} " +
+                                    "-v ${tempestConfLocalPath}:/etc/tempest/tempest.conf " +
+                                    "-v ${localLogDir}:${logDir} " +
                                     "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
                                     "-v /tmp/:/tmp/ " +
                                     "--rm ${dockerImageLink} " +

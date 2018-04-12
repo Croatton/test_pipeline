@@ -58,6 +58,21 @@ def runTempestTestsNew(master, dockerImageLink, target, pattern = '', localLogDi
                                     "/bin/bash -c \"run-tempest\" ")
 }
 
+def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='rally_reports.tar') {
+    def salt = new com.mirantis.mk.Salt()
+
+    def artifacts_dir = '_artifacts/'
+
+    salt.cmdRun(master, target, "tar -cf /root/${output_file} -C ${reports_dir} .")
+    sh "mkdir -p ${artifacts_dir}"
+
+    encoded = salt.cmdRun(master, target, "cat /root/${output_file}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success','')
+    writeFile file: "${artifacts_dir}${output_file}", text: encoded
+
+    // collect artifacts
+    archiveArtifacts artifacts: "${artifacts_dir}${output_file}"
+}
+
 /**
  * Execute stepler tests
  *
@@ -210,7 +225,7 @@ node(slave_node) {
         }
 
         stage('Archive rally artifacts') {
-            test.archiveRallyArtifacts(saltMaster, TEST_TARGET, reports_dir)
+            archiveTestArtifacts(saltMaster, TEST_TARGET, reports_dir)
         }
 
         salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${test_log_dir}"])

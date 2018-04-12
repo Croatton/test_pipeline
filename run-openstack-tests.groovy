@@ -44,7 +44,7 @@ salt = new com.mirantis.mk.Salt()
 test = new com.mirantis.mk.Test()
 python = new com.mirantis.mk.Python()
 
-def runNewTempestTests(master, dockerImageLink, target, pattern = '', localLogDir='/root/rally_reports/',logDir='/root/rally/rally_reports/') {
+def runTempestTestsNew(master, dockerImageLink, target, pattern = '', localLogDir='/root/test/',logDir='/root/test/') {
     def salt = new com.mirantis.mk.Salt()
     salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
     salt.cmdRun(master, "${target}", "docker run " +
@@ -103,8 +103,8 @@ node(slave_node) {
     if (common.validInputParam('TEST_TYPE')){
         test_type = TEST_TYPE
     }
-    def log_dir = '/home/rally/rally_reports/'
-    def reports_dir = '/root/rally/rally_reports/'
+    def log_dir = '/root.test/'
+    def reports_dir = '/root/test/'
     def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
     def test_log_dir = "/var/log/${test_type}"
     def testrail = false

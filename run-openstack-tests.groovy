@@ -118,7 +118,7 @@ node(slave_node) {
     if (common.validInputParam('TEST_TYPE')){
         test_type = TEST_TYPE
     }
-    def log_dir = '/root.test/'
+    def log_dir = '/root/test/'
     def reports_dir = '/root/test/'
     def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
     def test_log_dir = "/var/log/${test_type}"
@@ -128,7 +128,6 @@ node(slave_node) {
     def test_model = ''
     def venv = "${env.WORKSPACE}/venv"
     def test_concurrency = '0'
-    def test_set = 'full'
     def use_pepper = true
     if (common.validInputParam('USE_PEPPER')){
         use_pepper = USE_PEPPER.toBoolean()
@@ -186,8 +185,9 @@ node(slave_node) {
                     '/home/stepler/keystonercv3',
                     reports_dir)
             } else {
+
                 if (common.validInputParam('TEST_PATTERN')) {
-                    args = TEST_PATTERN
+                    args = '-r ${TEST_PATTERN} -w ${test_concurrency}'
                 }
                 if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
                     salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
@@ -198,15 +198,6 @@ node(slave_node) {
                 } else {
                     common.warningMsg('Cannot generate tempest config by runtest salt')
                 }
-
-//                test.runTempestTests(saltMaster, TEST_IMAGE,
-//                   TEST_TARGET,
-//                    test_pattern,
-//                    log_dir,
-//                    '/home/rally/keystonercv3',
-//                    test_set,
-//                    test_concurrency,
-//                    TEST_CONF)
 
                 runTempestTestsNew(saltMaster, TEST_IMAGE,
                     TEST_TARGET,

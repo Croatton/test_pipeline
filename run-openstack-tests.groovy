@@ -44,12 +44,12 @@ salt = new com.mirantis.mk.Salt()
 test = new com.mirantis.mk.Test()
 python = new com.mirantis.mk.Python()
 
-def runTempestTestsNew(master, dockerImageLink, target, pattern = '', localLogDir='/root/test/',logDir='/root/tempest/',
+def runTempestTestsNew(master, dockerImageLink, target, args = '', localLogDir='/root/test/',logDir='/root/tempest/',
                        tempestConfLocalPath='/root/test/tempest_generated.conf') {
     def salt = new com.mirantis.mk.Salt()
     salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
     salt.cmdRun(master, "${target}", "docker run " +
-                                    "-e PATTERN=${pattern} " +
+                                    "-e ARGS=${args} " +
                                     "-v ${tempestConfLocalPath}:/etc/tempest/tempest.conf " +
                                     "-v ${localLogDir}:${logDir} " +
                                     "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
@@ -123,7 +123,7 @@ node(slave_node) {
     def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
     def test_log_dir = "/var/log/${test_type}"
     def testrail = false
-    def test_pattern = ''
+    def args = ''
     def test_milestone = ''
     def test_model = ''
     def venv = "${env.WORKSPACE}/venv"
@@ -186,13 +186,8 @@ node(slave_node) {
                     '/home/stepler/keystonercv3',
                     reports_dir)
             } else {
-
-                if (common.validInputParam('TEST_SET')) {
-                    test_set = TEST_SET
-                    common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
-                } else if (common.validInputParam('TEST_PATTERN')) {
-                    test_pattern = TEST_PATTERN
-                    common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
+                if (common.validInputParam('TEST_PATTERN')) {
+                    args = TEST_PATTERN
                 }
                 if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
                     salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
@@ -215,7 +210,7 @@ node(slave_node) {
 
                 runTempestTestsNew(saltMaster, TEST_IMAGE,
                     TEST_TARGET,
-                    test_pattern)
+                    args)
 
                 def tempest_stdout
                 tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${date}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')

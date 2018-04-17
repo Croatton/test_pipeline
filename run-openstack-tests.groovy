@@ -188,6 +188,8 @@ node(slave_node) {
 
                 if (common.validInputParam('TEST_PATTERN')) {
                     args = "\'-r ${TEST_PATTERN} -w ${test_concurrency}\'"
+                } else {
+                    error ('TEST_PATTERN is empty SRTRING')
                 }
                 if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
                     salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)

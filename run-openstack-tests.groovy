@@ -54,7 +54,7 @@ def runTempestTestsNew(master, dockerImageLink, target, args = '', localLogDir='
                                     "-v ${localLogDir}:${logDir} " +
                                     "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
                                     "-v /tmp/:/tmp/ " +
-                                    "--rm ${dockerImageLink} " +
+                                    "${dockerImageLink} " +
                                     "/bin/bash -c \"run-tempest\" ")
 }
 

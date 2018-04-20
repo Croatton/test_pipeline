@@ -44,7 +44,7 @@ salt = new com.mirantis.mk.Salt()
 test = new com.mirantis.mk.Test()
 python = new com.mirantis.mk.Python()
 
-def runTempestTestsNew(master, dockerImageLink, target, args = '', localLogDir='/root/test/',logDir='/root/tempest/',
+def runTempestTestsNew(master, dockerImageLink, target, args = '', localLogDir='/root/test/', logDir='/root/tempest/',
                        tempestConfLocalPath='/root/test/tempest_generated.conf') {
     def salt = new com.mirantis.mk.Salt()
     salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
@@ -118,7 +118,6 @@ node(slave_node) {
     if (common.validInputParam('TEST_TYPE')){
         test_type = TEST_TYPE
     }
-    def log_dir = '/root/test/'
     def reports_dir = '/root/test/'
     def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
     def test_log_dir = "/var/log/${test_type}"
@@ -161,6 +160,8 @@ node(slave_node) {
         // Set up test_target parameter on cluster level
         common.infoMsg("Set test_target parameter to ${TEST_TARGET} on cluster level")
         salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
+        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_cfg_dir', "${reports_dir}"], false)
+        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_log_dir', "/root/tempest/tempest.log"], false)
 
         salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
         salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
@@ -189,7 +190,7 @@ node(slave_node) {
                 if (common.validInputParam('TEST_PATTERN')) {
                     args = "\'-r ${TEST_PATTERN} -w ${test_concurrency}\'"
                 } else {
-                    error ('TEST_PATTERN is empty SRTRING')
+                    error ('TEST_PATTERN FIELD IS EMPTY ')
                 }
                 if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
                     salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
@@ -201,18 +202,16 @@ node(slave_node) {
                     common.warningMsg('Cannot generate tempest config by runtest salt')
                 }
 
-                runTempestTestsNew(saltMaster, TEST_IMAGE,
-                    TEST_TARGET,
-                    args)
+                runTempestTestsNew(saltMaster, TEST_IMAGE, TEST_TARGET, args)
 
                 def tempest_stdout
-                tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_${date}_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
+                tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
                 common.infoMsg('Short test report:')
                 common.infoMsg(tempest_stdout)
             }
         }
 
-        stage('Archive rally artifacts') {
+        stage('Archive Test artifacts') {
             archiveTestArtifacts(saltMaster, TEST_TARGET, reports_dir)
         }
 

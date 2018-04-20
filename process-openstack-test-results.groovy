@@ -1,4 +1,3 @@
-
 /**
  *
  * Pipeline for test results processing.
@@ -51,25 +50,25 @@ node('docker') {
 
         def report = sh(script: "find ${testOutputDir} -name *.xml", returnStdout: true).trim()
 
-//        if (common.validInputParam('TESTRAIL') && TESTRAIL.toBoolean()) {
-//            stage('Upload tests results to Testrail'){
-//                def test_suite = TEST_SUITE
+        if (common.validInputParam('TESTRAIL') && TESTRAIL.toBoolean()) {
+            stage('Upload tests results to Testrail'){
+                def test_suite = TEST_SUITE
 
                 // Docker run fails if TEST_SUITE has whitespaces
-//                if (test_suite[0] != "'" && test_suite[-1] != "'"){
-//                    test_suite = "'${test_suite}'"
-//                }
+                if (test_suite[0] != "'" && test_suite[-1] != "'"){
+                    test_suite = "'${test_suite}'"
+                }
 
-//                def plan = TEST_PLAN ?: "${TEST_MILESTONE}-OSCORE-${TEST_DATE}"
-//                def group = TEST_GROUP ?: "${TEST_MODEL}-${OPENSTACK_VERSION}-nightly"
+                def plan = TEST_PLAN ?: "${TEST_MILESTONE}-OSCORE-${TEST_DATE}"
+                def group = TEST_GROUP ?: "${TEST_MODEL}-${OPENSTACK_VERSION}-nightly"
 
                 //ensures that we have up to date image on jenkins slave
-//                sh("docker pull ${TEST_REPORTER_IMAGE}")
+                sh("docker pull ${TEST_REPORTER_IMAGE}")
 
-//                test.uploadResultsTestrail(report, TEST_REPORTER_IMAGE, group, TESTRAIL_QA_CREDENTIALS,
-//                    plan, TEST_MILESTONE, test_suite)
-//            }
-//        }
+                test.uploadResultsTestrail(report, TEST_REPORTER_IMAGE, group, TESTRAIL_QA_CREDENTIALS,
+                    plan, TEST_MILESTONE, test_suite)
+            }
+        }
 
         //TODO: use xunit publisher plugin to publish results
         stage('Check tests results'){

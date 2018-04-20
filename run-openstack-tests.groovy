@@ -58,7 +58,7 @@ def runTempestTestsNew(master, dockerImageLink, target, args = '', localLogDir='
                                     "/bin/bash -c \"run-tempest\" ")
 }
 
-def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='rally_reports.tar') {
+def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='test.tar') {
     def salt = new com.mirantis.mk.Salt()
 
     def artifacts_dir = '_artifacts/'

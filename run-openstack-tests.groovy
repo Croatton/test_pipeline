@@ -191,6 +191,12 @@ timeout(time: 6, unit: 'HOURS') {
                         salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
                     }
 
+                    if (salt.testTarget(saltMaster, 'I@runtest:tempest and cfg01*')) {
+                        salt.enforceState(saltMaster, 'I@runtest:tempest and cfg01*', ['runtest'], true)
+                    } else {
+                        common.warningMsg('Cannot generate tempest config by runtest salt')
+                    }
+
                     runTempestTestsNew(saltMaster, TEST_IMAGE, TEST_TARGET, args)
 
                     def tempest_stdout

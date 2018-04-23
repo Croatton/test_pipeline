@@ -37,6 +37,35 @@ salt = new com.mirantis.mk.Salt()
 test = new com.mirantis.mk.Test()
 python = new com.mirantis.mk.Python()
 
+def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='test.tar') {
+    def salt = new com.mirantis.mk.Salt()
+
+    def artifacts_dir = '_artifacts/'
+
+    salt.cmdRun(master, target, "tar --exclude='env' -cf /root/${output_file} -C ${reports_dir} .")
+    sh "mkdir -p ${artifacts_dir}"
+
+    encoded = salt.cmdRun(master, target, "cat /root/${output_file}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success','')
+    writeFile file: "${artifacts_dir}${output_file}", text: encoded
+
+    // collect artifacts
+    archiveArtifacts artifacts: "${artifacts_dir}${output_file}"
+}
+
+def runTempestTestsNew(master, target, dockerImageLink, args = '', localLogDir='/root/test/', logDir='/root/tempest/',
+                       tempestConfLocalPath='/root/test/tempest_generated.conf') {
+    def salt = new com.mirantis.mk.Salt()
+    salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
+    salt.cmdRun(master, "${target}", "docker run " +
+                                    "-e ARGS=${args} " +
+                                    "-v ${tempestConfLocalPath}:/etc/tempest/tempest.conf " +
+                                    "-v ${localLogDir}:${logDir} " +
+                                    "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
+                                    "-v /tmp/:/tmp/ " +
+                                    "--rm ${dockerImageLink} " +
+                                    "/bin/bash -c \"run-tempest\" ")
+}
+
 /**
  * Execute stepler tests
  *
@@ -162,7 +191,7 @@ timeout(time: 6, unit: 'HOURS') {
                         salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
                     }
 
-                    test.runTempestTestsNew(saltMaster, TEST_IMAGE, TEST_TARGET, args)
+                    runTempestTestsNew(saltMaster, TEST_IMAGE, TEST_TARGET, args)
 
                     def tempest_stdout
                     tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
@@ -172,7 +201,7 @@ timeout(time: 6, unit: 'HOURS') {
             }
 
             stage('Archive Test artifacts') {
-                test.archiveTestArtifacts(saltMaster, TEST_TARGET, reports_dir)
+                archiveTestArtifacts(saltMaster, TEST_TARGET, reports_dir)
             }
 
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${test_log_dir}"])

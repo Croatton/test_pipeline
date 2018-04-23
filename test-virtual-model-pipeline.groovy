@@ -85,78 +85,80 @@ if (common.validInputParam('BOOTSTRAP_EXTRA_REPO_PARAMS')) {
   extraRepo = ''
 }
 
-node("oscore-testing") {
+timeout(time: 6, unit: 'HOURS') {
+    node("oscore-testing") {
 
-  try {
-    stage('Deploy cluster') {
-      deployBuild = build( job: "${deployJobName}", propagate: false, parameters: [
-        [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: STACK_RECLASS_ADDRESS],
-        [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: STACK_RECLASS_BRANCH],
-        [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: FORMULA_PKG_REVISION],
-        [$class: 'StringParameterValue', name: 'HEAT_STACK_ZONE', value: HEAT_STACK_ZONE],
-        [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT', value: OPENSTACK_API_PROJECT],
-        [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: extraRepo],
-        [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: false],
-        ]
-      )
-      // get salt master url
-      saltMasterUrl = "http://${deployBuild.description.tokenize(' ')[1]}:6969"
-      common.infoMsg("Salt API is accessible via ${saltMasterUrl}")
-
-      // Try to set stack name for stack cleanup job
-      if (deployBuild.description) {
-        stackName = deployBuild.description.tokenize(' ')[0]
-      }
-      if (deployBuild.result != 'SUCCESS'){
-        error("Deployment failed, please check ${deployBuild.absoluteUrl}")
-      }
-    }
-
-    // Perform smoke tests to fail early
-    stage('Run tests'){
-      if (runSmoke){
-        common.infoMsg('Running smoke tests')
-        build(job: stackTestJob, parameters: [
-          [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: saltMasterUrl],
-          [$class: 'StringParameterValue', name: 'TEST_TARGET', value: testTarget],
-          [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: "smoke"],
-          [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: testConcurrency],
-          [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
-          [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
-          [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
-          [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
-        ])
-      }
-    }
-
-  } catch (Exception e) {
-    currentBuild.result = 'FAILURE'
-    throw e
-  } finally {
-    if (common.validInputParam('STACK_DELETE') && STACK_DELETE.toBoolean() == true) {
       try {
-        if (!stackName){
-          error('Stack cleanup parameters are undefined, cannot cleanup')
-        }
-        stage('Trigger cleanup job') {
-          common.errorMsg('Stack cleanup job triggered')
-          build(job: stackCleanupJob, parameters: [
-            [$class: 'StringParameterValue', name: 'STACK_NAME', value: stackName],
-            [$class: 'StringParameterValue', name: 'STACK_TYPE', value: 'heat'],
-            [$class: 'StringParameterValue', name: 'OPENSTACK_API_URL', value: OPENSTACK_API_URL],
-            [$class: 'StringParameterValue', name: 'OPENSTACK_API_CREDENTIALS', value: OPENSTACK_API_CREDENTIALS],
+        stage('Deploy cluster') {
+          deployBuild = build( job: "${deployJobName}", propagate: false, parameters: [
+            [$class: 'StringParameterValue', name: 'STACK_RECLASS_ADDRESS', value: STACK_RECLASS_ADDRESS],
+            [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: STACK_RECLASS_BRANCH],
+            [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: FORMULA_PKG_REVISION],
+            [$class: 'StringParameterValue', name: 'HEAT_STACK_ZONE', value: HEAT_STACK_ZONE],
             [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT', value: OPENSTACK_API_PROJECT],
-            [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT_DOMAIN', value: OPENSTACK_API_PROJECT_DOMAIN],
-            [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT_ID', value: OPENSTACK_API_PROJECT_ID],
-            [$class: 'StringParameterValue', name: 'OPENSTACK_API_USER_DOMAIN', value: OPENSTACK_API_USER_DOMAIN],
-            [$class: 'StringParameterValue', name: 'OPENSTACK_API_CLIENT', value: OPENSTACK_API_CLIENT],
-            [$class: 'StringParameterValue', name: 'OPENSTACK_API_VERSION', value: OPENSTACK_API_VERSION],
+            [$class: 'StringParameterValue', name: 'BOOTSTRAP_EXTRA_REPO_PARAMS', value: extraRepo],
+            [$class: 'BooleanParameterValue', name: 'STACK_DELETE', value: false],
             ]
           )
+          // get salt master url
+          saltMasterUrl = "http://${deployBuild.description.tokenize(' ')[1]}:6969"
+          common.infoMsg("Salt API is accessible via ${saltMasterUrl}")
+
+          // Try to set stack name for stack cleanup job
+          if (deployBuild.description) {
+            stackName = deployBuild.description.tokenize(' ')[0]
+          }
+          if (deployBuild.result != 'SUCCESS'){
+            error("Deployment failed, please check ${deployBuild.absoluteUrl}")
+          }
         }
+
+        // Perform smoke tests to fail early
+        stage('Run tests'){
+          if (runSmoke){
+            common.infoMsg('Running smoke tests')
+            build(job: stackTestJob, parameters: [
+              [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: saltMasterUrl],
+              [$class: 'StringParameterValue', name: 'TEST_TARGET', value: testTarget],
+              [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: "smoke"],
+              [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: testConcurrency],
+              [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
+              [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
+              [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
+              [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
+            ])
+          }
+        }
+
       } catch (Exception e) {
-        common.errorMsg("Stack cleanup failed\n${e.message}")
+        currentBuild.result = 'FAILURE'
+        throw e
+      } finally {
+        if (common.validInputParam('STACK_DELETE') && STACK_DELETE.toBoolean() == true) {
+          try {
+            if (!stackName){
+              error('Stack cleanup parameters are undefined, cannot cleanup')
+            }
+            stage('Trigger cleanup job') {
+              common.errorMsg('Stack cleanup job triggered')
+              build(job: stackCleanupJob, parameters: [
+                [$class: 'StringParameterValue', name: 'STACK_NAME', value: stackName],
+                [$class: 'StringParameterValue', name: 'STACK_TYPE', value: 'heat'],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_URL', value: OPENSTACK_API_URL],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_CREDENTIALS', value: OPENSTACK_API_CREDENTIALS],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT', value: OPENSTACK_API_PROJECT],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT_DOMAIN', value: OPENSTACK_API_PROJECT_DOMAIN],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_PROJECT_ID', value: OPENSTACK_API_PROJECT_ID],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_USER_DOMAIN', value: OPENSTACK_API_USER_DOMAIN],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_CLIENT', value: OPENSTACK_API_CLIENT],
+                [$class: 'StringParameterValue', name: 'OPENSTACK_API_VERSION', value: OPENSTACK_API_VERSION],
+                ]
+              )
+            }
+          } catch (Exception e) {
+            common.errorMsg("Stack cleanup failed\n${e.message}")
+          }
+        }
       }
     }
-  }
 }

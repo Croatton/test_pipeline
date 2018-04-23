@@ -106,7 +106,7 @@ node("python") {
             [$class: 'StringParameterValue', name: 'STACK_RECLASS_BRANCH', value: "${gerritRef}"],
             [$class: 'StringParameterValue', name: 'STACK_CLUSTER_NAME', value: "${cn}"],
             [$class: 'StringParameterValue', name: 'FORMULA_PKG_REVISION', value: "nightly"],
-            [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ""], // Run only smoke tests.
+            [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: "smoke"], // Run only smoke tests.
             ]
           }
         }

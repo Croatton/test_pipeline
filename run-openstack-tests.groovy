@@ -157,7 +157,7 @@ timeout(time: 6, unit: 'HOURS') {
             salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
             salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_cfg_dir', "${reports_dir}"], false)
             salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_log_file', "/root/tempest/tempest.log"], false)
-            salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_regenerate_conf', 'True'], false)
+            //salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_regenerate_conf', 'True'], false)
             
             
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])

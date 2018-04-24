@@ -199,7 +199,7 @@ timeout(time: 6, unit: 'HOURS') {
                         common.warningMsg('Cannot generate tempest config by runtest salt')
                     }
 
-                    runTempestTestsNew(saltMaster, TEST_IMAGE, TEST_TARGET, args)
+                    runTempestTestsNew(saltMaster, TEST_TARGET, TEST_IMAGE, args)
 
                     def tempest_stdout
                     tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')

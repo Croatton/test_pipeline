@@ -77,6 +77,32 @@ def runSteplerTests(master, dockerImageLink, target, testPattern='', logDir='/ho
 }
 
 /**
+ * Configure the node where runtest state is going to be executed
+ *
+ * @param nodename          nodename is going to be configured
+ * @param test_target       Salt target to run tempest on e.g. gtw*
+ * @param tempest_cfg_dir   directory to tempest configuration file
+ * @param logdir            directory to put tempest log files
+ **/
+
+def configureRuntestNode(saltMaster, nodename, test_target, temtest_cfg_dir, logdir) {
+    // Set up test_target parameter on node level
+    def fullnodename = salt.getMinions(saltMaster, nodename).get(0)
+    def saltMasterTarget = ['expression': 'I@salt:master', 'type': 'compound']
+
+    common.infoMsg("Setting up mandatory runtest parameters in ${fullnodename} on node level")
+
+    salt.runSaltProcessStep(saltMaster, fullnodename, 'pkg.install', ["salt-formula-runtest", "salt-formula-artifactory"])
+    result = salt.runSaltCommand(saltMaster, 'local', saltMasterTarget, 'reclass.node_update', null, null, ["name": "${fullnodename}", "classes": ["service.runtest.tempest"], "parameters": ["tempest_test_target": test_target, "runtest_tempest_cfg_dir": temtest_cfg_dir, "runtest_tempest_log_file": "${logdir}/tempest.log"]])
+    salt.checkResult(result)
+
+    salt.fullRefresh(saltMaster, "*")
+    salt.enforceState(saltMaster, 'I@glance:client:enabled', 'glance.client')
+    salt.enforceState(saltMaster, 'I@nova:client:enabled', 'nova.client')
+    salt.enforceState(saltMaster, 'I@neutron:client:enabled', 'neutron.client')
+}
+
+ /**
  * Execute tempest tests
  *
  * @param dockerImageLink       Docker image link with rally and tempest
@@ -86,6 +112,7 @@ def runSteplerTests(master, dockerImageLink, target, testPattern='', logDir='/ho
  * @param localLogDir           Path to local destination folder for logs on host machine
  * @param tempestConfLocalPath  Path to tempest config on host machine
  */
+
 def runTempestTestsNew(master, target, dockerImageLink, args = '', localLogDir='/root/test/', logDir='/root/tempest/',
                        tempestConfLocalPath='/root/test/tempest_generated.conf') {
     def salt = new com.mirantis.mk.Salt()
@@ -132,6 +159,7 @@ if (common.validInputParam('SLAVE_NODE')) {
 timeout(time: 6, unit: 'HOURS') {
     node(slave_node) {
 
+        // remove when pipeline is switched to new container
         def use_rally = true
         if (common.validInputParam('USE_RALLY')){
             use_rally = USE_RALLY.toBoolean()
@@ -142,8 +170,13 @@ timeout(time: 6, unit: 'HOURS') {
             test_type = TEST_TYPE
         }
 
-        def log_dir = '/home/rally/rally_reports/'
+        def log_dir = '/root/tempest/'
+        // remove when pipeline is switched to new container
+        if (use_rally){
+            log_dir = '/home/rally/rally_reports/'
+        }
         def reports_dir = '/root/test/'
+        // remove when pipeline is switched to new container
         if (use_rally){
             reports_dir = '/root/rally_reports/'
         }
@@ -188,9 +221,7 @@ timeout(time: 6, unit: 'HOURS') {
                 }
             }
 
-            // Set up test_target parameter on cluster level
-            common.infoMsg("Set test_target parameter to ${TEST_TARGET} on cluster level")
-            salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
+            configureRuntestNode(saltMaster, 'cfg01*', TEST_TARGET, reports_dir, log_dir)
 
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
@@ -228,13 +259,12 @@ timeout(time: 6, unit: 'HOURS') {
 
                     } else {
 
-                        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_cfg_dir', "${reports_dir}"], false)
-                        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_log_file', "/root/tempest/tempest.log"], false)
-
+                        // There are some jobs which launch tempest runner with empty pattern and
+                        // test_set=smoke
                         if (common.validInputParam('TEST_PATTERN')) {
                             test_pattern = TEST_PATTERN
                         } else {
-                            test_pattern = 'test'
+                            test_pattern = 'smoke'
                         }
 
                         args = "\'-r ${test_pattern} -w ${test_concurrency}\'"
@@ -260,6 +290,7 @@ timeout(time: 6, unit: 'HOURS') {
                             test_concurrency,
                             TEST_CONF)
                     } else {
+                        // Remove this when job TEST_IMAGE is switched to new docker imge
                         if (!common.validInputParam('LOCAL_TEMPEST_IMAGE')) {
                             TEST_IMAGE = 'docker-prod-virtual.docker.mirantis.net/mirantis/cicd/ci-tempest'
                         }

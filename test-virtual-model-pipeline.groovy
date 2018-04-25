@@ -4,6 +4,7 @@
 *
 * Expected parameters:
 *    CREDENTIALS_ID                    ID of jenkins credentials to be used when connecting to gerrit.
+
 *    STACK_RECLASS_ADDRESS             Git URL to reclass model to use for deployment.
 *    STACK_RECLASS_BRANCH              Git branch or ref of cluster model to test.
 *    STACK_CLUSTER_NAME                The name of cluster to test.
@@ -66,6 +67,13 @@ if (common.validInputParam('TEST_CONCURRENCY')) {
   testConcurrency = "2"
 }
 
+def testConf
+if (common.validInputParam('TEST_CONF')) {
+  testConf = TEST_CONF
+} else {
+  testConf = "/home/rally/rally_reports/tempest_generated.conf"
+}
+
 def testTarget
 if (common.validInputParam('TEST_TARGET')) {
   testTarget = TEST_TARGET
@@ -119,9 +127,11 @@ timeout(time: 6, unit: 'HOURS') {
             common.infoMsg('Running smoke tests')
             build(job: stackTestJob, parameters: [
               [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: saltMasterUrl],
+              [$class: 'StringParameterValue', name: 'TEST_CONF', value: testConf],
               [$class: 'StringParameterValue', name: 'TEST_TARGET', value: testTarget],
-              [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: "smoke"],
+              [$class: 'StringParameterValue', name: 'TEST_SET', value: 'smoke'],
               [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: testConcurrency],
+              [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ''],
               [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
               [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
               [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],

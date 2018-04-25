@@ -58,6 +58,7 @@ node('oscore-testing') {
     def image_short_name = project_url.tokenize('/').last() - ~/\.git$/
     def image_full_name = "${image_short_name}-${currentTimestamp}"
     def image_file = "${image_short_name}.tar"
+    def use_rally = true
 
     if (common.validInputParam('STACK_RECLASS_ADDRESS')) {
         stack_reclass_address = STACK_RECLASS_ADDRESS
@@ -72,6 +73,10 @@ node('oscore-testing') {
 
     if (common.validInputParam('FORMULA_PKG_REVISION')) {
         formula_pkg_revision = FORMULA_PKG_REVISION
+    }
+
+    if (GERRIT_PROJECT == 'mcp/docker-ci-tempest' ) {
+        use_rally = false
     }
 
     try {
@@ -165,14 +170,17 @@ node('oscore-testing') {
                 [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
                 [$class: 'StringParameterValue', name: 'LOCAL_TEMPEST_IMAGE', value: "/tmp/${image_file}"],
                 [$class: 'StringParameterValue', name: 'TEST_IMAGE', value: "${image_full_name}"],
+                [$class: 'StringParameterValue', name: 'TEST_CONF', value: TEST_CONF],
                 [$class: 'StringParameterValue', name: 'TEST_TARGET', value: TEST_TARGET],
+                [$class: 'StringParameterValue', name: 'TEST_SET', value: 'smoke'],
                 [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: '2'],
-                [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: 'smoke'],
+                [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ''],
                 [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
                 [$class: 'BooleanParameterValue', name: 'USE_PEPPER', value: false],
                 [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
                 [$class: 'StringParameterValue', name: 'TEST_PASS_THRESHOLD', value: '100'],
                 [$class: 'BooleanParameterValue', name: 'FAIL_ON_TESTS', value: true],
+                [$class: 'BooleanParameterValue', name: 'USE_RALLY', value: use_rally],
             ])
         }
     } catch (Exception e) {

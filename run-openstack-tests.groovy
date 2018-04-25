@@ -14,6 +14,13 @@
  *   SALT_MASTER_URL              URL of Salt master
  *   SALT_MASTER_CREDENTIALS      Credentials to the Salt API
  *   TEST_IMAGE                   Docker image to run tempest
+ *   TEST_CONF                    Tempest configuration file path inside container
+ *                                In case of runtest formula usage:
+ *                                    TEST_CONF should be align to runtest:tempest:cfg_dir and runtest:tempest:cfg_name pillars and container mounts
+ *                                    Example: tempest config is generated into /root/rally_reports/tempest_generated.conf by runtest state.
+ *                                             Means /home/rally/rally_reports/tempest_generated.conf on docker tempest system.
+ *                                In case of predefined tempest config usage:
+ *                                    TEST_CONF should be a path to predefined tempest config inside container
  *   TEST_DOCKER_INSTALL          Install docker
  *   TEST_TARGET                  Salt target to run tempest on e.g. gtw*
  *   TEST_PATTERN                 Tempest tests pattern
@@ -28,6 +35,7 @@
  *   TEST_PASS_THRESHOLD          Persent of passed tests to consider build successful
  *   SLAVE_NODE                   Label or node name where the job will be run
  *   USE_PEPPER                   Whether to use pepper for connection to salt master
+ *   USE_RALLY                    Whether to use rally to launch tests
  *
  */
 
@@ -36,35 +44,6 @@ git = new com.mirantis.mk.Git()
 salt = new com.mirantis.mk.Salt()
 test = new com.mirantis.mk.Test()
 python = new com.mirantis.mk.Python()
-
-def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='test.tar') {
-    def salt = new com.mirantis.mk.Salt()
-
-    def artifacts_dir = '_artifacts/'
-
-    salt.cmdRun(master, target, "tar --exclude='env' -cf /root/${output_file} -C ${reports_dir} .")
-    sh "mkdir -p ${artifacts_dir}"
-
-    encoded = salt.cmdRun(master, target, "cat /root/${output_file}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success','')
-    writeFile file: "${artifacts_dir}${output_file}", text: encoded
-
-    // collect artifacts
-    archiveArtifacts artifacts: "${artifacts_dir}${output_file}"
-}
-
-def runTempestTestsNew(master, target, dockerImageLink, args = '', localLogDir='/root/test/', logDir='/root/tempest/',
-                       tempestConfLocalPath='/root/test/tempest_generated.conf') {
-    def salt = new com.mirantis.mk.Salt()
-    salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
-    salt.cmdRun(master, "${target}", "docker run " +
-                                    "-e ARGS=${args} " +
-                                    "-v ${tempestConfLocalPath}:/etc/tempest/tempest.conf " +
-                                    "-v ${localLogDir}:${logDir} " +
-                                    "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
-                                    "-v /tmp/:/tmp/ " +
-                                    "--rm ${dockerImageLink} " +
-                                    "/bin/bash -c \"run-tempest\" ")
-}
 
 /**
  * Execute stepler tests
@@ -97,6 +76,51 @@ def runSteplerTests(master, dockerImageLink, target, testPattern='', logDir='/ho
     salt.cmdRun(master, "${target}", "docker run --rm --net=host ${docker_run}")
 }
 
+/**
+ * Execute tempest tests
+ *
+ * @param dockerImageLink       Docker image link with rally and tempest
+ * @param target                Host to run tests
+ * @param args                  Arguments that we pass in tempest
+ * @param logDir                Directory to store tempest reports in container
+ * @param localLogDir           Path to local destination folder for logs on host machine
+ * @param tempestConfLocalPath  Path to tempest config on host machine
+ */
+def runTempestTestsNew(master, target, dockerImageLink, args = '', localLogDir='/root/test/', logDir='/root/tempest/',
+                       tempestConfLocalPath='/root/test/tempest_generated.conf') {
+    def salt = new com.mirantis.mk.Salt()
+    salt.runSaltProcessStep(master, target, 'file.mkdir', ["${localLogDir}"])
+    salt.cmdRun(master, "${target}", "docker run " +
+                                    "-e ARGS=${args} " +
+                                    "-v ${tempestConfLocalPath}:/etc/tempest/tempest.conf " +
+                                    "-v ${localLogDir}:${logDir} " +
+                                    "-v /etc/ssl/certs/:/etc/ssl/certs/ " +
+                                    "-v /tmp/:/tmp/ " +
+                                    "--rm ${dockerImageLink} " +
+                                    "/bin/bash -c \"run-tempest\" ")
+}
+
+/** Archive Tempest results in Artifacts
+ *
+ * @param master              Salt connection.
+ * @param target              Target node to install docker pkg
+ * @param reports_dir         Source directory to archive
+ */
+def archiveTestArtifacts(master, target, reports_dir='/root/test', output_file='test.tar') {
+    def salt = new com.mirantis.mk.Salt()
+
+    def artifacts_dir = '_artifacts/'
+
+    salt.cmdRun(master, target, "tar --exclude='env' -cf /root/${output_file} -C ${reports_dir} .")
+    sh "mkdir -p ${artifacts_dir}"
+
+    encoded = salt.cmdRun(master, target, "cat /root/${output_file}", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success','')
+    writeFile file: "${artifacts_dir}${output_file}", text: encoded
+
+    // collect artifacts
+    archiveArtifacts artifacts: "${artifacts_dir}${output_file}"
+}
+
 // Define global variables
 def saltMaster
 def slave_node = 'python'
@@ -108,20 +132,32 @@ if (common.validInputParam('SLAVE_NODE')) {
 timeout(time: 6, unit: 'HOURS') {
     node(slave_node) {
 
+        def use_rally = true
+        if (common.validInputParam('USE_RALLY')){
+            use_rally = USE_RALLY.toBoolean()
+        }
+
         def test_type = 'tempest'
         if (common.validInputParam('TEST_TYPE')){
             test_type = TEST_TYPE
         }
 
+        def log_dir = '/home/rally/rally_reports/'
         def reports_dir = '/root/test/'
+        if (use_rally){
+            reports_dir = '/root/rally_reports/'
+        }
+
         def date = sh(script: 'date +%Y-%m-%d', returnStdout: true).trim()
         def test_log_dir = "/var/log/${test_type}"
         def testrail = false
         def args = ''
+        def test_pattern = ''
         def test_milestone = ''
         def test_model = ''
         def venv = "${env.WORKSPACE}/venv"
         def test_concurrency = '0'
+        def test_set = 'full'
         def use_pepper = true
         if (common.validInputParam('USE_PEPPER')){
             use_pepper = USE_PEPPER.toBoolean()
@@ -155,11 +191,7 @@ timeout(time: 6, unit: 'HOURS') {
             // Set up test_target parameter on cluster level
             common.infoMsg("Set test_target parameter to ${TEST_TARGET} on cluster level")
             salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['tempest_test_target', TEST_TARGET], false)
-            salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_cfg_dir', "${reports_dir}"], false)
-            salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_log_file', "/root/tempest/tempest.log"], false)
-            
-            
-            
+
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.remove', ["${reports_dir}"])
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${reports_dir}"])
 
@@ -184,11 +216,30 @@ timeout(time: 6, unit: 'HOURS') {
                         reports_dir)
                 } else {
 
-                    if (common.validInputParam('TEST_PATTERN')) {
-                        args = "\'-r ${TEST_PATTERN} -w ${test_concurrency}\'"
+                    if (use_rally) {
+
+                        if (common.validInputParam('TEST_SET')) {
+                            test_set = TEST_SET
+                            common.infoMsg('TEST_SET is set, TEST_PATTERN parameter will be ignored')
+                        } else if (common.validInputParam('TEST_PATTERN')) {
+                            test_pattern = TEST_PATTERN
+                            common.infoMsg('TEST_PATTERN is set, TEST_CONCURRENCY and TEST_SET parameters will be ignored')
+                        }
+
                     } else {
-                        error ('TEST_PATTERN FIELD IS EMPTY ')
+
+                        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_cfg_dir', "${reports_dir}"], false)
+                        salt.runSaltProcessStep(saltMaster, 'I@salt:master', 'reclass.cluster_meta_set', ['runtest_tempest_log_file', "/root/tempest/tempest.log"], false)
+
+                        if (common.validInputParam('TEST_PATTERN')) {
+                            test_pattern = TEST_PATTERN
+                        } else {
+                            test_pattern = 'test'
+                        }
+
+                        args = "\'-r ${test_pattern} -w ${test_concurrency}\'"
                     }
+
                     if (salt.testTarget(saltMaster, 'I@runtest:salttest')) {
                         salt.enforceState(saltMaster, 'I@runtest:salttest', ['runtest.salttest'], true)
                     }
@@ -199,7 +250,21 @@ timeout(time: 6, unit: 'HOURS') {
                         common.warningMsg('Cannot generate tempest config by runtest salt')
                     }
 
-                    runTempestTestsNew(saltMaster, TEST_TARGET, TEST_IMAGE, args)
+                    if (use_rally) {
+                        test.runTempestTests(saltMaster, TEST_IMAGE,
+                            TEST_TARGET,
+                            test_pattern,
+                            log_dir,
+                            '/home/rally/keystonercv3',
+                            test_set,
+                            test_concurrency,
+                            TEST_CONF)
+                    } else {
+                        if (!common.validInputParam('LOCAL_TEMPEST_IMAGE')) {
+                            TEST_IMAGE = 'docker-prod-virtual.docker.mirantis.net/mirantis/cicd/ci-tempest'
+                        }
+                        runTempestTestsNew(saltMaster, TEST_TARGET, TEST_IMAGE, args)
+                    }
 
                     def tempest_stdout
                     tempest_stdout = salt.cmdRun(saltMaster, TEST_TARGET, "cat ${reports_dir}/report_*.log", true, null, false)['return'][0].values()[0].replaceAll('Salt command execution success', '')
@@ -209,7 +274,11 @@ timeout(time: 6, unit: 'HOURS') {
             }
 
             stage('Archive Test artifacts') {
-                archiveTestArtifacts(saltMaster, TEST_TARGET, reports_dir)
+                if (use_rally){
+                    test.archiveRallyArtifacts(saltMaster, TEST_TARGET, reports_dir)
+                } else {
+                    archiveTestArtifacts(saltMaster, TEST_TARGET, reports_dir)
+                }
             }
 
             salt.runSaltProcessStep(saltMaster, TEST_TARGET, 'file.mkdir', ["${test_log_dir}"])

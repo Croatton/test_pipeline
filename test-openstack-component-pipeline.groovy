@@ -36,6 +36,13 @@
  *   STACK_INSTALL                     Which components of the stack to install
  *   STACK_RECLASS_ADDRESS             Url to repository with stack salt models
  *   STACK_RECLASS_BRANCH              Branch of repository with stack salt models
+ *   TEST_CONF                         Tempest configuration file path inside container
+ *                                     In case of runtest formula usage:
+ *                                         TEST_CONF should be align to runtest:tempest:cfg_dir and runtest:tempest:cfg_name pillars and container mounts
+ *                                         Example: tempest config is generated into /root/rally_reports/tempest_generated.conf by runtest state.
+ *                                                  Means /home/rally/rally_reports/tempest_generated.conf on docker tempest system.
+ *                                     In case of predefined tempest config usage:
+ *                                         TEST_CONF should be a path to predefined tempest config inside container.
  *   TEST_CONCURRENCY                  Tempest tests concurrency
  *   TEST_TARGET                       Salt target for tempest tests
  *   TEST_PATTERN                      Tempest tests pattern - custom configuration for running
@@ -178,7 +185,7 @@ timeout(time: 6, unit: 'HOURS') {
             if (common.validInputParam('TEST_PATTERN')) {
                 test_pattern = TEST_PATTERN
             } else if (get_test_pattern(project)) {
-                test_pattern = "${get_test_pattern(project)}"
+                test_pattern = "${get_test_pattern(project)} --concurrency ${test_concurrency}"
             }
             if (!test_pattern && !run_smoke){
                    error('No RUN_SMOKE and TEST_PATTERN are set, no tests will be executed')
@@ -292,9 +299,11 @@ timeout(time: 6, unit: 'HOURS') {
                     build(job: STACK_TEST_JOB, parameters: [
                         [$class: 'StringParameterValue', name: 'SLAVE_NODE', value: node_name],
                         [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
+                        [$class: 'StringParameterValue', name: 'TEST_CONF', value: TEST_CONF],
                         [$class: 'StringParameterValue', name: 'TEST_TARGET', value: TEST_TARGET],
+                        [$class: 'StringParameterValue', name: 'TEST_SET', value: 'smoke'],
                         [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: test_concurrency],
-                        [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: "smoke"],
+                        [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: ''],
                         [$class: 'BooleanParameterValue', name: 'TESTRAIL', value: false],
                         [$class: 'BooleanParameterValue', name: 'USE_PEPPER', value: use_pepper],
                         [$class: 'StringParameterValue', name: 'PROJECT', value: 'smoke'],
@@ -309,8 +318,10 @@ timeout(time: 6, unit: 'HOURS') {
                     build(job: STACK_TEST_JOB, parameters: [
                         [$class: 'StringParameterValue', name: 'SLAVE_NODE', value: node_name],
                         [$class: 'StringParameterValue', name: 'SALT_MASTER_URL', value: salt_master_url],
+                        [$class: 'StringParameterValue', name: 'TEST_CONF', value: TEST_CONF],
                         [$class: 'StringParameterValue', name: 'TEST_TARGET', value: TEST_TARGET],
-                        [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: test_concurrency],
+                        [$class: 'StringParameterValue', name: 'TEST_SET', value: ''],
+                        [$class: 'StringParameterValue', name: 'TEST_CONCURRENCY', value: ''],
                         [$class: 'StringParameterValue', name: 'TEST_PATTERN', value: test_pattern],
                         [$class: 'StringParameterValue', name: 'TEST_MILESTONE', value: test_milestone],
                         [$class: 'StringParameterValue', name: 'TEST_MODEL', value: TEST_MODEL],

@@ -39,12 +39,12 @@ node('docker') {
             step ([$class: 'CopyArtifact',
                    projectName: TARGET_JOB,
                    selector: selector,
-                   filter: '_artifacts/test.tar',
+                   filter: '_artifacts/*.tar',
                    target: testOutputDir,
                    flatten: true,])
 
             dir(testOutputDir) {
-                sh('tar -xf test.tar')
+                sh('tar -xf *.tar')
             }
         }
 
@@ -74,7 +74,12 @@ node('docker') {
         stage('Check tests results'){
             def fileContents = sh(script: "cat ${report}", returnStdout: true).trim()
             def parsed = new XmlParser().parseText(fileContents)
-            def res = parsed.attributes()
+            def res
+            if (parsed.get('testsuite')){
+                res = parsed['testsuite'][0].attributes()
+            } else {
+                res = parsed.attributes()
+            }
 
             def failed = res.failures.toInteger()
             def tests = res.tests.toInteger()
